@@ -1,0 +1,649 @@
+--Document Type--
+
+CREATE TABLE DF_TYPE
+(
+  TYPE_ID      NUMBER(15),
+  TYPE_NAME    VARCHAR2(20 BYTE),
+  TYPE_DESC    VARCHAR2(150 BYTE),
+  INSERT_BY    VARCHAR2(20 BYTE),
+  INSERT_DATE  DATE,
+  INSERT_TIME  VARCHAR2(50 BYTE),
+  UPDATE_BY    VARCHAR2(20 BYTE),
+  UPDATE_DATE  DATE,
+  UPDATE_TIME  VARCHAR2(50 BYTE)
+);
+/
+
+ALTER TABLE DF_TYPE ADD (
+  CONSTRAINT PK_DFT
+  PRIMARY KEY
+  (TYPE_ID));
+
+SET DEFINE OFF;
+Insert into DF_TYPE
+   (TYPE_ID, TYPE_NAME, TYPE_DESC, INSERT_BY, INSERT_DATE, 
+    INSERT_TIME, UPDATE_BY, UPDATE_DATE, UPDATE_TIME)
+ Values
+   (2, 'Office Order/ Memo', 'Office order Administration order', 'IPI-006410', TO_DATE('4/5/2023', 'MM/DD/YYYY'), 
+    '05-APR-23', 'IPI-006410', TO_DATE('4/5/2023', 'MM/DD/YYYY'), '05-APR-23');
+Insert into DF_TYPE
+   (TYPE_ID, TYPE_NAME, TYPE_DESC, INSERT_BY, INSERT_DATE, 
+    INSERT_TIME, UPDATE_BY, UPDATE_DATE, UPDATE_TIME)
+ Values
+   (5, 'Manpower Note', 'Manpower Note', NULL, NULL, 
+    NULL, NULL, NULL, NULL);
+Insert into DF_TYPE
+   (TYPE_ID, TYPE_NAME, TYPE_DESC, INSERT_BY, INSERT_DATE, 
+    INSERT_TIME, UPDATE_BY, UPDATE_DATE, UPDATE_TIME)
+ Values
+   (3, 'Notice / Circular', 'Notice Circular', 'IPI-006410', TO_DATE('4/5/2023', 'MM/DD/YYYY'), 
+    '05-APR-23', 'IPI-006410', TO_DATE('4/5/2023', 'MM/DD/YYYY'), '05-APR-23');
+Insert into DF_TYPE
+   (TYPE_ID, TYPE_NAME, TYPE_DESC, INSERT_BY, INSERT_DATE, 
+    INSERT_TIME, UPDATE_BY, UPDATE_DATE, UPDATE_TIME)
+ Values
+   (6, 'Meeting Minutes', 'Meeting Minutes', NULL, NULL, 
+    NULL, NULL, NULL, NULL);
+Insert into DF_TYPE
+   (TYPE_ID, TYPE_NAME, TYPE_DESC, INSERT_BY, INSERT_DATE, 
+    INSERT_TIME, UPDATE_BY, UPDATE_DATE, UPDATE_TIME)
+ Values
+   (7, 'Procurment Note', 'Procurment Note', NULL, NULL, 
+    NULL, NULL, NULL, NULL);
+Insert into DF_TYPE
+   (TYPE_ID, TYPE_NAME, TYPE_DESC, INSERT_BY, INSERT_DATE, 
+    INSERT_TIME, UPDATE_BY, UPDATE_DATE, UPDATE_TIME)
+ Values
+   (1, 'General Note / Memo', 'General Note', 'IPI-006410', TO_DATE('12/28/2022', 'MM/DD/YYYY'), 
+    '28-DEC-22', 'IPI-006410', TO_DATE('12/28/2022', 'MM/DD/YYYY'), '28-DEC-22');
+Insert into DF_TYPE
+   (TYPE_ID, TYPE_NAME, TYPE_DESC, INSERT_BY, INSERT_DATE, 
+    INSERT_TIME, UPDATE_BY, UPDATE_DATE, UPDATE_TIME)
+ Values
+   (4, 'Departmental Note', 'Departmental Note', 'IPI-006410', TO_DATE('4/6/2023', 'MM/DD/YYYY'), 
+    '06-APR-23', 'IPI-006410', TO_DATE('4/6/2023', 'MM/DD/YYYY'), '06-APR-23');
+COMMIT;
+
+
+---Procurement Note when then select ITEM and item expert will approve after note create
+CREATE TABLE PUR_ITEM
+(
+  ITEM_ID    NUMBER,
+  ITEM_NAME  VARCHAR2(100 BYTE),
+  DEPT_NAME  VARCHAR2(200 BYTE),
+  EMPCODE    VARCHAR2(30 BYTE), --- Item Expert  
+  CREATE_BY  VARCHAR2(100 BYTE),
+  UPDATE_BY  DATE,
+  CCODE      VARCHAR2(20 BYTE),
+  ID         NUMBER,
+  UNITID     VARCHAR2(30 BYTE),
+  ENT_BY     VARCHAR2(30 BYTE),
+  ENT_DATE   DATE,
+  UPD_BY     VARCHAR2(30 BYTE),
+  UPD_DATE   DATE
+);
+
+SET DEFINE OFF;
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (1, 'Raw Material Api', 'Product Development', 'IPI-003357', 'DBMIS', 
+    NULL, 'IPI', 1, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (2, 'Raw Material Excipient', 'Product Development', 'IPI-003357', 'DBMIS', 
+    NULL, 'IPI', 2, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (3, 'Primary Packaging Material', 'Product Development', 'IPI-003357', 'DBMIS', 
+    NULL, 'IPI', 3, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (4, 'Secondary Packaging Material', 'Product Development', 'IPI-003357', 'DBMIS', 
+    NULL, 'IPI', 4, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (5, 'Civil & Plumbing', 'Engineering', 'IPI-005078', 'DBMIS', 
+    NULL, 'IPI', 5, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (6, 'Engineering Machinary', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 6, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (7, 'Electrical', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 7, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (8, 'Eng. Chemical', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 8, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (9, 'Entertainment', 'Purchase', 'IPI-000831', 'DBMIS', 
+    NULL, 'IPI', 9, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (10, 'Gift Item', 'Marketing', 'IPI-001360', 'DBMIS', 
+    NULL, 'IPI', 10, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (11, 'Hand Tools', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 11, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (12, 'Literature', 'Marketing', 'IPI-001360', 'DBMIS', 
+    NULL, 'IPI', 12, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (13, 'Machine Item', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 13, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (14, 'Production Machinary', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 14, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (15, 'Production Equipment & Accessories', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 15, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (16, 'Promotional', 'Marketing', 'IPI-001360', 'DBMIS', 
+    NULL, 'IPI', 16, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (17, 'Qc Equipment', 'Quality Assurance', 'IPI-003571', 'DBMIS', 
+    NULL, 'IPI', 17, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (18, 'Qc Reagent & Accessories', 'Quality Assurance', 'IPI-003571', 'DBMIS', 
+    NULL, 'IPI', 18, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (19, 'Service', 'Purchase', 'IPI-000831', 'DBMIS', 
+    NULL, 'IPI', 19, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (20, 'Spare Parts', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 20, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (21, 'Stationary', 'Administration', 'IPI-000827', 'DBMIS', 
+    NULL, 'IPI', 21, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (22, 'Transport', 'Administration', 'IPI-000812', 'DBMIS', 
+    NULL, 'IPI', 22, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (23, 'Utility and service Equipment', 'Engineering', 'IPI-008316', 'DBMIS', 
+    NULL, 'IPI', 23, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (24, 'Computer & Accessories', 'Information Technology', 'IPI-002760', 'DBMIS', 
+    NULL, 'IPI', 24, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (25, 'Furniture', 'Accounts', 'IPI-004302', 'DBMIS', 
+    NULL, 'IPI', 25, 'Unit-01', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (1, 'Raw Material Api', 'Product Development', 'INM-000005', 'DBMIS', 
+    NULL, 'INM', 26, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (2, 'Raw Material Excipient', 'Product Development', 'INM-000005', 'DBMIS', 
+    NULL, 'INM', 27, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (3, 'Primary Packaging Material', 'Product Development', 'INM-000005', 'DBMIS', 
+    NULL, 'INM', 28, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (4, 'Secondary Packaging Material', 'Product Development', 'INM-000005', 'DBMIS', 
+    NULL, 'INM', 29, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (5, 'Civil & Plumbing', 'Engineering', 'IPI-005078', 'DBMIS', 
+    NULL, 'INM', 30, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (6, 'Engineering Machinary', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 31, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (7, 'Electrical', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 32, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (8, 'Eng. Chemical', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 33, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (9, 'Entertainment', 'Purchase', 'IPI-000831', 'DBMIS', 
+    NULL, 'INM', 34, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (10, 'Gift Item', 'Marketing', 'IPI-007795', 'DBMIS', 
+    NULL, 'INM', 35, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (11, 'Hand Tools', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 36, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (12, 'Literature', 'Marketing', 'IPI-001360', 'DBMIS', 
+    NULL, 'INM', 37, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (13, 'Machine Item', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 38, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (14, 'Production Machinary', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 39, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (15, 'Production Equipment & Accessories', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 40, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (16, 'Promotional', 'Marketing', 'IPI-001360', 'DBMIS', 
+    NULL, 'INM', 41, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (17, 'Qc Equipment', 'Quality Assurance', 'INM-000002', 'DBMIS', 
+    NULL, 'INM', 42, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (18, 'Qc Reagent & Accessories', 'Quality Assurance', 'INM-000002', 'DBMIS', 
+    NULL, 'INM', 43, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (19, 'Service', 'Purchase', 'IPI-000831', 'DBMIS', 
+    NULL, 'INM', 44, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (20, 'Spare Parts', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 45, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (21, 'Stationary', 'Administration', 'IPI-000827', 'DBMIS', 
+    NULL, 'INM', 46, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (22, 'Transport', 'Administration', 'IPI-000812', 'DBMIS', 
+    NULL, 'INM', 47, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (23, 'Utility and service Equipment', 'Engineering', 'IPI-000517', 'DBMIS', 
+    NULL, 'INM', 48, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (24, 'Computer & Accessories', 'Information Technology', 'IPI-002760', 'DBMIS', 
+    NULL, 'INM', 49, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+Insert into PUR_ITEM
+   (ITEM_ID, ITEM_NAME, DEPT_NAME, EMPCODE, CREATE_BY, 
+    UPDATE_BY, CCODE, ID, UNITID, ENT_BY, 
+    ENT_DATE, UPD_BY, UPD_DATE)
+ Values
+   (25, 'Furniture', 'Accounts', 'IPI-004302', 'DBMIS', 
+    NULL, 'INM', 50, 'Unit-10', NULL, 
+    NULL, NULL, NULL);
+COMMIT;
+
+
+CREATE OR REPLACE TRIGGER DBMIS.Pur_ITE_AUDIT
+   BEFORE INSERT OR UPDATE
+   ON DBMIS.PUR_ITEM
+   FOR EACH ROW
+DISABLE
+DECLARE
+ 
+   vUser   VARCHAR2 (32);
+BEGIN
+   SELECT NVL (v ('APP_USER'), USER) INTO vUser FROM DUAL;
+
+   IF INSERTING
+   THEN
+      :NEW.CREATE_BY := vUser;
+    
+   ELSIF UPDATING
+   THEN
+      :NEW.UPDATE_BY := vUser;
+    
+   END IF;
+END;
+/
+
+
+--Document forwarding sequence who will FOrward and approve  
+--Need best design where approval path will broke for snd review another person(Employee) for recomendation
+CREATE TABLE DBMIS.DF_SEQUENCE
+(
+  SQ_ID        NUMBER(15),
+  TYPE_ID      NUMBER(15),
+  UNIT_ID      VARCHAR2(15 BYTE),
+  DEPT_ID      VARCHAR2(200 BYTE),
+  L1_EMPCODE   VARCHAR2(15 BYTE),
+  L2_EMPCODE   VARCHAR2(15 BYTE),
+  L3_EMPCODE   VARCHAR2(15 BYTE),
+  L4_EMPCODE   VARCHAR2(15 BYTE),
+  L5_EMPCODE   VARCHAR2(15 BYTE),
+  L6_EMPCODE   VARCHAR2(15 BYTE),
+  L7_EMPCODE   VARCHAR2(15 BYTE),
+  L8_EMPCODE   VARCHAR2(15 BYTE),
+  L9_EMPCODE   VARCHAR2(15 BYTE),
+  L10_EMPCODE  VARCHAR2(15 BYTE),
+  L11_EMPCODE  VARCHAR2(15 BYTE),
+  L12_EMPCODE  VARCHAR2(15 BYTE),
+  IS_ACTIVE    VARCHAR2(10 BYTE),
+  INSERT_BY    VARCHAR2(20 BYTE),
+  INSERT_DATE  DATE,
+  INSERT_TIME  VARCHAR2(50 BYTE),
+  UPDATE_BY    VARCHAR2(20 BYTE),
+  UPDATE_DATE  DATE,
+  UPDATE_TIME  VARCHAR2(50 BYTE),
+  ITEM_ID      NUMBER,
+  CATEGORY_ID  NUMBER,
+  ENT_BY       VARCHAR2(30 BYTE),
+  ENT_DATE     DATE,
+  UPD_BY       VARCHAR2(30 BYTE),
+  UPD_DATE     DATE,
+  COMPANY      VARCHAR2(100 BYTE),
+  LOCATION     VARCHAR2(30 BYTE),
+  ITEM_AMT     NUMBER
+);
+
+SET DEFINE OFF;
+Insert into DF_SEQUENCE
+   (SQ_ID, TYPE_ID, UNIT_ID, DEPT_ID, L1_EMPCODE, 
+    L2_EMPCODE, L3_EMPCODE, L4_EMPCODE, L5_EMPCODE, L6_EMPCODE, 
+    L7_EMPCODE, L8_EMPCODE, L9_EMPCODE, L10_EMPCODE, L11_EMPCODE, 
+    L12_EMPCODE, IS_ACTIVE, INSERT_BY, INSERT_DATE, INSERT_TIME, 
+    UPDATE_BY, UPDATE_DATE, UPDATE_TIME, ITEM_ID, CATEGORY_ID, 
+    ENT_BY, ENT_DATE, UPD_BY, UPD_DATE, COMPANY, 
+    LOCATION, ITEM_AMT)
+ Values
+   (1, 1, 'Unit-01', NULL, 'IPI-007377', 
+    'IPI-007378', 'IPI-000789', NULL, NULL, NULL, 
+    NULL, NULL, NULL, NULL, NULL, 
+    NULL, 'Y', 'IPI-009129', TO_DATE('10/26/2025', 'MM/DD/YYYY'), '26-OCT-25', 
+    'IPI-009129', TO_DATE('10/26/2025', 'MM/DD/YYYY'), '26-OCT-25', NULL, 1, 
+    NULL, NULL, NULL, NULL, 'IPI', 
+    'HDO', NULL);
+Insert into DF_SEQUENCE
+   (SQ_ID, TYPE_ID, UNIT_ID, DEPT_ID, L1_EMPCODE, 
+    L2_EMPCODE, L3_EMPCODE, L4_EMPCODE, L5_EMPCODE, L6_EMPCODE, 
+    L7_EMPCODE, L8_EMPCODE, L9_EMPCODE, L10_EMPCODE, L11_EMPCODE, 
+    L12_EMPCODE, IS_ACTIVE, INSERT_BY, INSERT_DATE, INSERT_TIME, 
+    UPDATE_BY, UPDATE_DATE, UPDATE_TIME, ITEM_ID, CATEGORY_ID, 
+    ENT_BY, ENT_DATE, UPD_BY, UPD_DATE, COMPANY, 
+    LOCATION, ITEM_AMT)
+ Values
+   (2, 4, NULL, NULL, NULL, 
+    NULL, NULL, NULL, NULL, NULL, 
+    NULL, NULL, NULL, NULL, NULL, 
+    NULL, 'Y', 'IPI-009129', TO_DATE('10/26/2025', 'MM/DD/YYYY'), '26-OCT-25', 
+    'IPI-009129', TO_DATE('10/26/2025', 'MM/DD/YYYY'), '26-OCT-25', NULL, 1, 
+    NULL, NULL, NULL, NULL, 'IPI', 
+    'HDO', NULL);
+Insert into DF_SEQUENCE
+   (SQ_ID, TYPE_ID, UNIT_ID, DEPT_ID, L1_EMPCODE, 
+    L2_EMPCODE, L3_EMPCODE, L4_EMPCODE, L5_EMPCODE, L6_EMPCODE, 
+    L7_EMPCODE, L8_EMPCODE, L9_EMPCODE, L10_EMPCODE, L11_EMPCODE, 
+    L12_EMPCODE, IS_ACTIVE, INSERT_BY, INSERT_DATE, INSERT_TIME, 
+    UPDATE_BY, UPDATE_DATE, UPDATE_TIME, ITEM_ID, CATEGORY_ID, 
+    ENT_BY, ENT_DATE, UPD_BY, UPD_DATE, COMPANY, 
+    LOCATION, ITEM_AMT)
+ Values
+   (4, 2, 'Unit-01', NULL, 'IPI-007377', 
+    'IPI-007378', 'IPI-000789', NULL, NULL, NULL, 
+    NULL, NULL, NULL, NULL, NULL, 
+    NULL, 'Y', 'IPI-002760', TO_DATE('10/26/2025', 'MM/DD/YYYY'), '26-OCT-25', 
+    'IPI-002760', TO_DATE('10/26/2025', 'MM/DD/YYYY'), '26-OCT-25', NULL, 1, 
+    NULL, NULL, NULL, NULL, 'IPI', 
+    'HDO', NULL);
+Insert into DF_SEQUENCE
+   (SQ_ID, TYPE_ID, UNIT_ID, DEPT_ID, L1_EMPCODE, 
+    L2_EMPCODE, L3_EMPCODE, L4_EMPCODE, L5_EMPCODE, L6_EMPCODE, 
+    L7_EMPCODE, L8_EMPCODE, L9_EMPCODE, L10_EMPCODE, L11_EMPCODE, 
+    L12_EMPCODE, IS_ACTIVE, INSERT_BY, INSERT_DATE, INSERT_TIME, 
+    UPDATE_BY, UPDATE_DATE, UPDATE_TIME, ITEM_ID, CATEGORY_ID, 
+    ENT_BY, ENT_DATE, UPD_BY, UPD_DATE, COMPANY, 
+    LOCATION, ITEM_AMT)
+ Values
+   (3, 3, 'Unit-01', NULL, 'IPI-007377', 
+    'IPI-007378', 'IPI-000789', NULL, NULL, NULL, 
+    NULL, NULL, NULL, NULL, NULL, 
+    NULL, 'Y', 'IPI-002760', TO_DATE('10/26/2025', 'MM/DD/YYYY'), '26-OCT-25', 
+    'IPI-002760', TO_DATE('10/26/2025', 'MM/DD/YYYY'), '26-OCT-25', NULL, 1, 
+    NULL, NULL, NULL, NULL, 'IPI', 
+    'HDO', NULL);
+Insert into DF_SEQUENCE
+   (SQ_ID, TYPE_ID, UNIT_ID, DEPT_ID, L1_EMPCODE, 
+    L2_EMPCODE, L3_EMPCODE, L4_EMPCODE, L5_EMPCODE, L6_EMPCODE, 
+    L7_EMPCODE, L8_EMPCODE, L9_EMPCODE, L10_EMPCODE, L11_EMPCODE, 
+    L12_EMPCODE, IS_ACTIVE, INSERT_BY, INSERT_DATE, INSERT_TIME, 
+    UPDATE_BY, UPDATE_DATE, UPDATE_TIME, ITEM_ID, CATEGORY_ID, 
+    ENT_BY, ENT_DATE, UPD_BY, UPD_DATE, COMPANY, 
+    LOCATION, ITEM_AMT)
+ Values
+   (5, 7, NULL, NULL, 'IPI-002760', 
+    'IPI-000831', 'IPI-000001', 'IPI-007377', 'IPI-007378', 'IPI-000790', 
+    'IPI-000789', NULL, NULL, NULL, NULL, 
+    NULL, 'Y', 'IPI-009129', TO_DATE('10/27/2025', 'MM/DD/YYYY'), '27-OCT-25', 
+    'IPI-009129', TO_DATE('10/27/2025', 'MM/DD/YYYY'), '27-OCT-25', 24, 3, 
+    NULL, NULL, NULL, NULL, 'IPI', 
+    'HDO', 10000);
+Insert into DF_SEQUENCE
+   (SQ_ID, TYPE_ID, UNIT_ID, DEPT_ID, L1_EMPCODE, 
+    L2_EMPCODE, L3_EMPCODE, L4_EMPCODE, L5_EMPCODE, L6_EMPCODE, 
+    L7_EMPCODE, L8_EMPCODE, L9_EMPCODE, L10_EMPCODE, L11_EMPCODE, 
+    L12_EMPCODE, IS_ACTIVE, INSERT_BY, INSERT_DATE, INSERT_TIME, 
+    UPDATE_BY, UPDATE_DATE, UPDATE_TIME, ITEM_ID, CATEGORY_ID, 
+    ENT_BY, ENT_DATE, UPD_BY, UPD_DATE, COMPANY, 
+    LOCATION, ITEM_AMT)
+ Values
+   (6, 7, 'Unit-01', NULL, 'IPI-005078', 
+    'IPI-000831', 'IPI-002106', 'IPI-007378', 'IPI-000789', NULL, 
+    NULL, NULL, NULL, NULL, NULL, 
+    NULL, 'Y', 'IPI-009129', TO_DATE('7/13/2026', 'MM/DD/YYYY'), '13-JUL-26', 
+    'IPI-009129', TO_DATE('7/13/2026', 'MM/DD/YYYY'), '13-JUL-26', 5, 3, 
+    NULL, NULL, NULL, NULL, 'IPI', 
+    'FAC', 50000);
+COMMIT;

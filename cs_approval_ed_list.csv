@@ -1,0 +1,26 @@
+DEPARTMENT_NAME,EMP_CODE,STATUS
+Accounts,IPI-007377,Y
+Administration,IPI-007377,Y
+Corporate Affairs,IPI-007377,Y
+Engineering,IPI-007378,Y
+Factory Admin,IPI-007378,Y
+Human Resource,IPI-007377,Y
+Information Technology,IPI-007377,Y
+Internal Audit,IPI-007377,Y
+International Business,IPI-007377,Y
+Legal and Training,IPI-007377,Y
+Market Survey and Research,IPI-007377,Y
+Marketing,IPI-007377,Y
+Microbiology,IPI-007378,Y
+Product Development,IPI-007378,Y
+Production,IPI-007378,Y
+Project and Development,IPI-001371,Y
+Purchase,IPI-007377,Y
+Quality Assurance,IPI-007378,Y
+Quality Control,IPI-007378,Y
+STRATEGIC MARKETING,IPI-007377,Y
+Sales and Distribution,IPI-007377,Y
+Share,IPI-007378,Y
+Store,IPI-007378,Y
+Calibration & Qualification,,Y
+Training and Skill Development,,Y

@@ -1,0 +1,2700 @@
+আপনার requirement অনুযায়ী এটাকে শুধু **Document Forwarding** হিসেবে design করলে পরে আবার rewrite করতে হবে। এটাকে **configurable Workflow + Approval + Review + Distribution Engine** হিসেবে design করা সবচেয়ে ভালো হবে।
+
+আপনার upload করা existing structure-ও আমি দেখেছি—বিশেষ করে `DF_SEQUENCE`, `DF_FORWARD_T`, `DF_FORWARDING_INS`, `PUR_ITEM`, department head এবং approval range data। Existing system-এর সবচেয়ে বড় limitation হলো `L1_EMPCODE ... L12_EMPCODE` এবং `L1_TYPE ... L12_TYPE` ধরনের fixed-column architecture। এটা এখন কাজ করলেও আপনার নতুন requirement—dynamic range approval, item expert, arbitrary review, return, delegation, post-approval distribution—এসব যোগ হলে খুব দ্রুত complex হয়ে যাবে।
+
+আপনার বর্তমান generated document-এর page 2-তেও Created → Reviewed → Forwarded → Approved এবং প্রতিটি ব্যক্তির Remarks/Date history দেখানো হচ্ছে। নতুন design-এ এই একই output রাখা যাবে, তবে history আর L1/L2 column থেকে নয়, একটি generic transaction history থেকে আসবে। 
+
+# 1. Recommended Architecture
+
+আমি system-টাকে ৬টি logical layer-এ ভাগ করব:
+
+```text
+DOCUMENT
+   │
+   ├── Document Type
+   ├── Document Data / Purchase Data
+   ├── Attachments / Versions
+   │
+   ▼
+WORKFLOW CONFIGURATION
+   │
+   ├── Workflow
+   ├── Workflow Steps
+   ├── Approval Rules
+   ├── Actor Resolution
+   │
+   ▼
+WORKFLOW INSTANCE
+   │
+   ├── Current Step
+   ├── Assigned Employee
+   ├── Pending Task
+   │
+   ▼
+ACTIONS / HISTORY
+   │
+   ├── Submit
+   ├── Forward
+   ├── Review
+   ├── Review Return
+   ├── Return
+   ├── Reject
+   ├── Approve
+   │
+   ▼
+FINAL APPROVAL
+   │
+   ▼
+DISTRIBUTION
+   ├── Employee
+   ├── Department
+   └── External Person
+```
+
+এখানে সবচেয়ে গুরুত্বপূর্ণ principle:
+
+> **Workflow Definition আর Document Transaction কখনো একই table-এ রাখবেন না।**
+
+---
+
+# 2. Existing `L1...L12` Structure বাদ দেওয়া উচিত
+
+বর্তমানে:
+
+```text
+DF_SEQUENCE
+-----------
+L1_EMPCODE
+L2_EMPCODE
+L3_EMPCODE
+...
+L12_EMPCODE
+```
+
+এবং `DF_FORWARD_T` trigger-এ L0 থেকে L12 পর্যন্ত প্রচুর repeated condition আছে।
+
+এটা scalable না।
+
+ধরুন আগামীতে:
+
+```text
+Step 1 Department Head
+Step 2 Item Expert
+Step 3 Purchase Head
+Step 4 Accounts
+Step 5 CFO
+Step 6 ED
+Step 7 MD
+```
+
+আর অন্য document-এ:
+
+```text
+Step 1 Department Head
+Step 2 HR Head
+Step 3 ED Admin
+```
+
+তখন employee-গুলো column না হয়ে **row** হবে।
+
+অর্থাৎ:
+
+```text
+DF_WORKFLOW_STEP
+
+STEP_ID  WORKFLOW_ID  STEP_NO   ACTOR_TYPE       ACTION_TYPE
+-------  -----------  -------   ---------------- -----------
+101      10           1         DEPT_HEAD        APPROVAL
+102      10           2         ITEM_EXPERT      REVIEW
+103      10           3         ROLE             APPROVAL
+104      10           4         ROLE             APPROVAL
+105      10           5         ROLE             APPROVAL
+```
+
+এটাই long-term best approach।
+
+---
+
+# 3. Core Tables
+
+আমি নিচের model recommend করছি।
+
+## A. `DF_DOCUMENT_TYPE`
+
+আপনার existing `DF_TYPE`-এর improved version।
+
+```text
+DF_DOCUMENT_TYPE
+----------------
+TYPE_ID
+TYPE_CODE
+TYPE_NAME
+DESCRIPTION
+WORKFLOW_ID
+IS_PURCHASE_YN
+ALLOW_REVIEW_YN
+ALLOW_RETURN_YN
+ALLOW_DISTRIBUTION_YN
+NUMBER_PREFIX
+IS_ACTIVE
+```
+
+Example:
+
+```text
+GEN  General Note / Memo
+DEP  Departmental Note
+PUR  Procurement Note
+CIR  Notice / Circular
+MOM  Meeting Minutes
+OO   Office Order
+```
+
+---
+
+# 4. Main Document Table
+
+## `DF_DOCUMENT`
+
+এখানে শুধুমাত্র document-এর current/header information থাকবে।
+
+```text
+DOCUMENT_ID
+DOCUMENT_NO
+TYPE_ID
+SUBJECT
+BODY_CLOB
+
+CREATOR_EMP_ID
+DEPT_ID
+UNIT_ID
+COMPANY_ID
+LOCATION_ID
+
+DOCUMENT_DATE
+
+CURRENT_STATUS
+CURRENT_STEP_ID
+CURRENT_ASSIGNEE_EMP_ID
+
+TOTAL_AMOUNT
+CURRENCY_CODE
+
+SUBMITTED_DATE
+APPROVED_DATE
+CLOSED_DATE
+
+VERSION_NO
+
+CREATED_BY
+CREATED_DATE
+UPDATED_BY
+UPDATED_DATE
+```
+
+Status:
+
+```text
+DRAFT
+SUBMITTED
+IN_PROCESS
+UNDER_REVIEW
+RETURNED
+REJECTED
+APPROVED
+CLOSED
+CANCELLED
+```
+
+`CURRENT_STATUS` report performance-এর জন্য থাকবে।
+
+কিন্তু সম্পূর্ণ history অন্য table-এ থাকবে।
+
+---
+
+# 5. Purchase Document আলাদা Detail Table
+
+Purchase document-এর information generic document table-এ সব ঢোকাবেন না।
+
+## `DF_PURCHASE`
+
+```text
+PURCHASE_ID
+DOCUMENT_ID
+PURCHASE_TYPE
+TOTAL_AMOUNT
+CURRENCY_CODE
+PURPOSE
+REQUIRED_DATE
+```
+
+## `DF_PURCHASE_ITEM`
+
+```text
+PURCHASE_ITEM_ID
+DOCUMENT_ID
+ITEM_ID
+DESCRIPTION
+QTY
+UNIT_PRICE
+TOTAL_AMOUNT
+```
+
+যদি একই procurement note-এ একাধিক category/item থাকে, এই design সেটা সহজে support করবে।
+
+---
+
+# 6. Item Master
+
+আপনার existing `PUR_ITEM` concept ভালো। কিন্তু `EMPCODE` directly item table-এ রাখা উচিত নয়।
+
+Use:
+
+## `DF_ITEM`
+
+```text
+ITEM_ID
+ITEM_CODE
+ITEM_NAME
+CATEGORY_ID
+DEPARTMENT_ID
+ACTIVE_YN
+```
+
+এবং:
+
+## `DF_ITEM_EXPERT`
+
+```text
+ITEM_EXPERT_ID
+ITEM_ID
+EMP_ID
+COMPANY_ID
+UNIT_ID
+LOCATION_ID
+
+PRIMARY_YN
+
+EFFECTIVE_FROM
+EFFECTIVE_TO
+ACTIVE_YN
+```
+
+এটার সুবিধা:
+
+একটি item-এর:
+
+```text
+Primary Expert
+Backup Expert
+Factory Expert
+Head Office Expert
+```
+
+আলাদা করা যাবে।
+
+আপনার নতুন `df_item_expart` concept তাই `PUR_ITEM.EMPCODE` থেকে better direction।
+
+---
+
+# 7. Workflow Master
+
+## `DF_WORKFLOW`
+
+```text
+WORKFLOW_ID
+WORKFLOW_CODE
+WORKFLOW_NAME
+
+TYPE_ID
+
+COMPANY_ID
+UNIT_ID
+LOCATION_ID
+DEPARTMENT_ID
+
+VERSION_NO
+EFFECTIVE_FROM
+EFFECTIVE_TO
+ACTIVE_YN
+```
+
+Example:
+
+```text
+10  PROCUREMENT_STANDARD
+20  GENERAL_MEMO
+30  MANPOWER_NOTE
+40  OFFICE_ORDER
+```
+
+---
+
+# 8. Workflow Step
+
+এটাই system-এর heart।
+
+## `DF_WORKFLOW_STEP`
+
+```text
+STEP_ID
+WORKFLOW_ID
+STEP_NO
+
+STEP_NAME
+
+STEP_TYPE
+ACTOR_TYPE
+ACTOR_ID
+
+ACTION_REQUIRED
+MANDATORY_YN
+
+CAN_REVIEW_YN
+CAN_RETURN_YN
+CAN_REJECT_YN
+
+FINAL_APPROVAL_YN
+
+ACTIVE_YN
+```
+
+`STEP_TYPE`:
+
+```text
+REVIEW
+RECOMMEND
+CHECK
+APPROVAL
+FINAL_APPROVAL
+```
+
+`ACTOR_TYPE`:
+
+```text
+EMPLOYEE
+ROLE
+DEPT_HEAD
+ITEM_EXPERT
+PURCHASE_HEAD
+ACCOUNTS_HEAD
+CFO
+CONCERNED_ED
+MD
+DOCUMENT_CREATOR
+```
+
+এখানে employee hard-code না করাই ভালো।
+
+---
+
+# 9. Role Based Authority
+
+Employee change হলে workflow edit করতে হবে না।
+
+## `DF_ROLE`
+
+```text
+ROLE_ID
+ROLE_CODE
+ROLE_NAME
+```
+
+Example:
+
+```text
+DEPT_HEAD
+PURCHASE_HEAD
+ACCOUNTS_HEAD
+CFO
+ED_ADMIN
+ED_PLANTS
+MANAGING_DIRECTOR
+```
+
+তারপর:
+
+## `DF_ROLE_ASSIGNMENT`
+
+```text
+ASSIGNMENT_ID
+ROLE_ID
+EMP_ID
+
+COMPANY_ID
+UNIT_ID
+LOCATION_ID
+DEPT_ID
+
+EFFECTIVE_FROM
+EFFECTIVE_TO
+ACTIVE_YN
+```
+
+বর্তমান `DEPAT_HEAD`-কেও এই model-এ migrate করা ভালো।
+
+কারণ department head change হলে:
+
+```text
+Old Head: EFFECTIVE_TO = 31-AUG-2026
+New Head: EFFECTIVE_FROM = 01-SEP-2026
+```
+
+তখন পুরনো document-এর historical accuracy থাকবে।
+
+---
+
+# 10. Purchase Approval Range
+
+এখানে আপনার মূল requirement।
+
+ধরি policy:
+
+|    Amount | Required Authority |
+| --------: | ------------------ |
+|  ≤ 10,000 | Department Head    |
+|  ≤ 30,000 | Accounts Head      |
+|  ≤ 50,000 | CFO                |
+| ≤ 100,000 | Executive Director |
+| > 100,000 | Managing Director  |
+
+Hard-coded PL/SQL করবেন না।
+
+বর্তমান `df_forwarding_ins`-এ যেমন:
+
+```sql
+p_item_amt >= 50000
+```
+
+এই ধরনের logic বাদ দেওয়া উচিত।
+
+তার বদলে:
+
+## `DF_APPROVAL_RULE`
+
+```text
+RULE_ID
+WORKFLOW_ID
+
+COMPANY_ID
+UNIT_ID
+LOCATION_ID
+
+ITEM_CATEGORY_ID
+ITEM_ID
+
+MIN_AMOUNT
+MAX_AMOUNT
+
+PRIORITY
+
+ACTIVE_YN
+EFFECTIVE_FROM
+EFFECTIVE_TO
+```
+
+তারপর:
+
+## `DF_APPROVAL_RULE_STEP`
+
+```text
+RULE_STEP_ID
+RULE_ID
+STEP_NO
+
+ACTOR_TYPE
+ACTOR_ID
+
+ACTION_TYPE
+MANDATORY_YN
+FINAL_APPROVAL_YN
+```
+
+---
+
+# 11. দুই ধরনের Amount Rule Support করুন
+
+এটা খুব গুরুত্বপূর্ণ।
+
+আপনার business policy দুইভাবে হতে পারে।
+
+### Option A — Final authority based
+
+৳8,000:
+
+```text
+Department Head → Approved
+```
+
+৳25,000:
+
+```text
+Accounts Head → Approved
+```
+
+৳45,000:
+
+```text
+CFO → Approved
+```
+
+### Option B — Cumulative approval
+
+এটাই corporate approval-এর জন্য বেশি common:
+
+৳8,000:
+
+```text
+Department Head
+```
+
+৳25,000:
+
+```text
+Department Head
+→ Accounts Head
+```
+
+৳45,000:
+
+```text
+Department Head
+→ Accounts Head
+→ CFO
+```
+
+৳75,000:
+
+```text
+Department Head
+→ Accounts Head
+→ CFO
+→ Executive Director
+```
+
+৳150,000:
+
+```text
+Department Head
+→ Accounts Head
+→ CFO
+→ Executive Director
+→ Managing Director
+```
+
+আমি **Option B support করার মতো engine** বানাব।
+
+Configuration-এ:
+
+```text
+APPROVAL_MODE = CUMULATIVE
+```
+
+বা
+
+```text
+APPROVAL_MODE = MATCHED_RANGE
+```
+
+রাখবেন।
+
+এতে ভবিষ্যতে policy change করলেও code change লাগবে না।
+
+---
+
+# 12. Procurement Workflow Example
+
+ধরুন Engineering department-এর Electrical item-এর value:
+
+```text
+৳75,000
+```
+
+Workflow automatically তৈরি হবে:
+
+```text
+Creator
+   ↓
+Concerned Department Head
+   ↓
+Electrical Item Expert
+   ↓
+Purchase Head
+   ↓
+Accounts Head
+   ↓
+CFO
+   ↓
+Executive Director
+   ↓
+Approved
+```
+
+যদি ৳150,000 হয়:
+
+```text
+Creator
+   ↓
+Department Head
+   ↓
+Item Expert
+   ↓
+Purchase Head
+   ↓
+Accounts Head
+   ↓
+CFO
+   ↓
+Executive Director
+   ↓
+Managing Director
+   ↓
+Approved
+```
+
+কোন employee কে প্রতিটি role fulfil করবে সেটা runtime-এ resolve হবে।
+
+---
+
+# 13. Runtime Workflow কখনো Master Configuration থেকে সরাসরি চালাবেন না
+
+এটা খুব গুরুত্বপূর্ণ design decision।
+
+Document submit করার সময় workflow-এর **snapshot** তৈরি করুন।
+
+কারণ আজ:
+
+```text
+CFO = Employee A
+MD  = Employee B
+```
+
+ছয় মাস পর:
+
+```text
+CFO = Employee C
+```
+
+পুরনো document Employee C-র নামে দেখানো যাবে না।
+
+তাই:
+
+## `DF_DOCUMENT_ROUTE`
+
+```text
+ROUTE_ID
+DOCUMENT_ID
+
+STEP_NO
+SOURCE_STEP_ID
+
+STEP_NAME
+STEP_TYPE
+
+ASSIGNED_EMP_ID
+ASSIGNED_ROLE_ID
+
+STATUS
+
+STARTED_AT
+COMPLETED_AT
+
+IS_FINAL_YN
+```
+
+Submit-এর সময় configured workflow থেকে route copy হবে।
+
+Example:
+
+```text
+DOC 5001
+
+1  Department Head    IPI-000123
+2  Item Expert        IPI-008316
+3  Purchase Head      IPI-000831
+4  Accounts Head      IPI-000001
+5  CFO                IPI-000790
+6  Executive Director IPI-007377
+```
+
+তারপর Master workflow change হলেও Document 5001 unchanged থাকবে।
+
+---
+
+# 14. Pending Task Table
+
+## `DF_TASK`
+
+Inbox-এর জন্য।
+
+```text
+TASK_ID
+DOCUMENT_ID
+ROUTE_ID
+
+TASK_TYPE
+
+ASSIGNED_TO_EMP_ID
+ASSIGNED_BY_EMP_ID
+
+STATUS
+
+ASSIGNED_DATE
+DUE_DATE
+
+COMPLETED_DATE
+
+PARENT_TASK_ID
+RETURN_TO_TASK_ID
+```
+
+Status:
+
+```text
+PENDING
+COMPLETED
+CANCELLED
+RETURNED
+WAITING_REVIEW
+```
+
+এটাই APEX "My Inbox"-এর main source হবে।
+
+---
+
+# 15. আপনার সবচেয়ে গুরুত্বপূর্ণ Requirement: Ad-hoc Review
+
+ধরুন document এখন CFO-এর কাছে।
+
+Normal route:
+
+```text
+Department Head
+→ Accounts Head
+→ CFO
+→ ED
+→ MD
+```
+
+CFO document দেখে মনে করলেন IT-এর Shadiqur-এর opinion দরকার।
+
+তিনি:
+
+```text
+Send for Review
+       ↓
+Shadiqur
+```
+
+এই review normal approval route-এর part হবে না।
+
+System:
+
+```text
+CFO Task = WAITING_REVIEW
+
+Review Task
+Reviewer = Shadiqur
+Requested By = CFO
+Parent Task = CFO task
+```
+
+Reviewer:
+
+```text
+Review Complete
+Remarks: "Technical specification found okay."
+```
+
+তারপর:
+
+```text
+Review Task = COMPLETED
+
+CFO Task = PENDING
+```
+
+Document আবার CFO-এর inbox-এ আসবে।
+
+CFO তারপর:
+
+```text
+Forward
+```
+
+করলে normal path:
+
+```text
+CFO → ED
+```
+
+চলবে।
+
+এটাই আপনার requirement-এর cleanest implementation।
+
+---
+
+# 16. Nested Review-ও Support করা সম্ভব
+
+ধরুন CFO → Shadiqur review দিলেন।
+
+Shadiqur আবার Engineering Expert-এর মতামত চান।
+
+Structure হতে পারে:
+
+```text
+CFO
+ │
+ └── Review → Shadiqur
+               │
+               └── Review → Engineering Expert
+```
+
+Return:
+
+```text
+Engineering Expert
+        ↓
+Shadiqur
+        ↓
+CFO
+        ↓
+Normal Workflow
+```
+
+এটা `PARENT_TASK_ID` দিয়ে elegantভাবে করা যায়।
+
+তবে business চাইলে reviewer-কে আবার review delegation-এর permission disable করেও রাখা যাবে।
+
+---
+
+# 17. Review Workflow Approval Workflow-এর সাথে Mix করবেন না
+
+History-তে দেখাবে:
+
+```text
+10:01  Md. X       Forwarded
+10:15  CFO         Sent for Review
+10:18  Shadiqur    Review Received
+11:03  Shadiqur    Reviewed - Found Okay
+11:04  CFO         Review Returned
+11:10  CFO         Forwarded
+11:25  ED          Recommended
+11:32  MD          Approved
+```
+
+এটাই audit-friendly।
+
+---
+
+# 18. Central Immutable History Table
+
+সবকিছুর জন্য একটি table।
+
+## `DF_ACTION_HISTORY`
+
+```text
+ACTION_ID
+DOCUMENT_ID
+ROUTE_ID
+TASK_ID
+
+ACTION_TYPE
+
+ACTION_BY_EMP_ID
+ACTION_TO_EMP_ID
+
+ACTION_DATE
+
+FROM_STATUS
+TO_STATUS
+
+COMMENTS
+
+PARENT_ACTION_ID
+
+IP_ADDRESS
+APEX_SESSION_ID
+APP_USER
+```
+
+Action Type:
+
+```text
+CREATED
+UPDATED
+SUBMITTED
+
+RECEIVED
+FORWARDED
+
+REVIEW_REQUESTED
+REVIEWED
+REVIEW_RETURNED
+
+RETURNED
+RESUBMITTED
+
+RECOMMENDED
+
+APPROVED
+REJECTED
+CANCELLED
+
+DISTRIBUTED
+VIEWED
+ACKNOWLEDGED
+```
+
+**এই table UPDATE করবেন না।**
+
+Only:
+
+```sql
+INSERT
+```
+
+Audit history immutable হওয়া উচিত।
+
+---
+
+# 19. Document Versioning
+
+Returned document edit করা হলে পুরনো version হারানো যাবে না।
+
+## `DF_DOCUMENT_VERSION`
+
+```text
+VERSION_ID
+DOCUMENT_ID
+VERSION_NO
+
+SUBJECT
+BODY_CLOB
+
+CREATED_BY
+CREATED_DATE
+
+CHANGE_REASON
+```
+
+Example:
+
+```text
+V1 Submitted
+↓
+Returned by Accounts
+↓
+V2 Resubmitted
+↓
+Approved
+```
+
+Audit:
+
+```text
+Version 1
+Version 2
+```
+
+দুইটিই থাকবে।
+
+---
+
+# 20. Attachment Table
+
+## `DF_DOCUMENT_ATTACHMENT`
+
+```text
+ATTACHMENT_ID
+DOCUMENT_ID
+VERSION_NO
+
+FILE_NAME
+MIME_TYPE
+FILE_SIZE
+FILE_BLOB
+
+ATTACHMENT_TYPE
+
+UPLOADED_BY
+UPLOADED_DATE
+```
+
+একটি document-এ unlimited attachment support করবে।
+
+---
+
+# 21. Return vs Reject আলাদা রাখুন
+
+এগুলো এক জিনিস নয়।
+
+### RETURN
+
+Correction দরকার।
+
+```text
+ED
+ ↓
+Return
+ ↓
+Creator / Previous Step
+ ↓
+Correction
+ ↓
+Resubmit
+```
+
+Document active থাকবে।
+
+### REJECT
+
+Process terminated।
+
+```text
+STATUS = REJECTED
+```
+
+সাধারণভাবে creator নতুন document/version ছাড়া continue করতে পারবে না।
+
+---
+
+# 22. Return শুধু Previous Step না
+
+Configuration-এ allow করুন:
+
+```text
+Return To:
+
+Previous Step
+Document Creator
+Specific Previous Step
+Any Previous Actor
+```
+
+UI-তে button:
+
+```text
+Return
+   Return To: [Department Head ▼]
+   Reason:    [................]
+```
+
+History full থাকবে।
+
+---
+
+# 23. Approval-এর পরে Forward/Distribution
+
+আপনার requirement:
+
+> Approval হওয়ার পর অন্যান্য employee বা ব্যক্তিকে পাঠানো যাবে।
+
+এটাকে workflow-এর অংশ করব না।
+
+এটার জন্য:
+
+## `DF_DISTRIBUTION`
+
+```text
+DISTRIBUTION_ID
+DOCUMENT_ID
+
+RECIPIENT_TYPE
+
+EMP_ID
+DEPT_ID
+
+EXTERNAL_NAME
+EXTERNAL_EMAIL
+EXTERNAL_PHONE
+EXTERNAL_ORGANIZATION
+
+SENT_BY
+SENT_DATE
+
+DELIVERY_STATUS
+VIEWED_DATE
+ACKNOWLEDGED_DATE
+
+MESSAGE
+```
+
+Recipient Type:
+
+```text
+EMPLOYEE
+DEPARTMENT
+EXTERNAL
+```
+
+Example:
+
+```text
+Approved
+   ↓
+Distribute
+   ├── HR Department
+   ├── Accounts
+   ├── Md. X
+   └── External Vendor ABC Ltd.
+```
+
+---
+
+# 24. Internal Employee Distribution
+
+Employee receive করলে "My Received Documents"-এ থাকবে।
+
+Optional:
+
+```text
+Unread
+Read
+Acknowledged
+```
+
+এটা approval status পরিবর্তন করবে না।
+
+অর্থাৎ:
+
+```text
+Document Status = APPROVED
+```
+
+থাকবে।
+
+---
+
+# 25. External Person
+
+যদি company employee না হয়:
+
+```text
+Name
+Organization
+Email
+Phone
+Reference
+```
+
+রাখুন।
+
+Future-এ চাইলে secure link/token দিয়ে document view করানো যাবে।
+
+---
+
+# 26. Document Number
+
+আপনার existing report-এ:
+
+```text
+GENE-202510/00004
+```
+
+এর মতো numbering আছে। 
+
+নতুন system-এ configurable numbering রাখব।
+
+## `DF_NUMBER_FORMAT`
+
+```text
+TYPE_ID
+PREFIX
+RESET_TYPE
+FORMAT_MASK
+```
+
+Example:
+
+```text
+GENE-202608/00001
+PUR-202608/00015
+MEMO-2026/00125
+```
+
+Generate **submit-এর সময়**, draft-এর সময় নয়।
+
+তাহলে cancelled drafts-এর কারণে official number gap কমবে।
+
+---
+
+# 27. Current Department Head Table Improve করা
+
+বর্তমান `DEPAT_HEAD` table-এ:
+
+```text
+EMPCODE
+DEPT_NAME
+UNIT
+```
+
+রয়েছে।
+
+Better:
+
+```text
+DF_DEPT_AUTHORITY
+
+ID
+COMPANY_ID
+UNIT_ID
+LOCATION_ID
+DEPT_ID
+
+ROLE_CODE
+EMP_ID
+
+EFFECTIVE_FROM
+EFFECTIVE_TO
+ACTIVE_YN
+```
+
+Department name text দিয়ে join না করে ID ব্যবহার করুন।
+
+---
+
+# 28. Employee না Role?
+
+Workflow-এ যতটা সম্ভব:
+
+❌
+
+```text
+L3 = IPI-007377
+```
+
+না।
+
+✅
+
+```text
+ACTOR_TYPE = ROLE
+ACTOR_CODE = EXECUTIVE_DIRECTOR
+```
+
+Runtime resolver বের করবে:
+
+```text
+IPI-007377
+```
+
+কারণ person change হয়, role থাকে।
+
+---
+
+# 29. Actor Resolver Package
+
+Oracle package:
+
+```text
+PKG_DF_ACTOR
+```
+
+Functions:
+
+```sql
+get_department_head(...)
+get_item_expert(...)
+get_purchase_head(...)
+get_accounts_head(...)
+get_cfo(...)
+get_concerned_ed(...)
+get_md(...)
+resolve_actor(...)
+```
+
+Example:
+
+```sql
+v_emp_id :=
+    pkg_df_actor.resolve_actor(
+        p_actor_type  => 'ITEM_EXPERT',
+        p_document_id => p_document_id
+    );
+```
+
+---
+
+# 30. Main Workflow Package
+
+Business logic trigger-এ লিখব না।
+
+আমি package বানাব:
+
+```text
+PKG_DF_WORKFLOW
+```
+
+Main procedures:
+
+```sql
+create_document
+update_draft
+
+submit_document
+
+build_route
+
+forward_document
+
+request_review
+complete_review
+
+return_document
+resubmit_document
+
+approve_document
+reject_document
+
+cancel_document
+
+distribute_document
+```
+
+---
+
+# 31. Trigger Minimal রাখুন
+
+বর্তমান `DF_FORWARD_T` প্রায় সম্পূর্ণ workflow engine trigger-এর মধ্যে করছে।
+
+নতুন version-এ এমন করবেন না।
+
+Trigger ideally শুধু:
+
+```text
+Created date
+Created user
+Updated date
+Updated user
+```
+
+বা audit safety।
+
+Workflow transition explicit package procedure দিয়ে হবে।
+
+কারণ APEX debugging তখন অনেক সহজ:
+
+```text
+Button
+  ↓
+PKG_DF_WORKFLOW.FORWARD_DOCUMENT
+  ↓
+Validation
+  ↓
+Update Task
+  ↓
+Create History
+  ↓
+Create Next Task
+```
+
+---
+
+# 32. Transaction Safe Process
+
+উদাহরণ:
+
+```sql
+pkg_df_workflow.forward_document(
+    p_document_id => :Pxxx_DOCUMENT_ID,
+    p_emp_id      => :G_EMP_ID,
+    p_comments    => :Pxxx_REMARKS
+);
+```
+
+Procedure-এর ভিতরে:
+
+```text
+1. Lock current task
+2. Verify current user
+3. Verify pending status
+4. Complete current task
+5. Insert history
+6. Resolve next route
+7. Create next task
+8. Update DF_DOCUMENT
+```
+
+এক transaction।
+
+---
+
+# 33. Double Approval Prevent করা
+
+`SELECT ... FOR UPDATE` ব্যবহার করবেন।
+
+Example:
+
+```sql
+SELECT task_id
+INTO v_task_id
+FROM df_task
+WHERE document_id = p_document_id
+  AND assigned_to_emp_id = p_emp_id
+  AND status = 'PENDING'
+FOR UPDATE;
+```
+
+তারপর action।
+
+এতে user দুইবার button চাপলেও duplicate approval হবে না।
+
+---
+
+# 34. Workflow Snapshot
+
+Submit-এর সময়:
+
+```text
+Workflow Master
+    ↓
+Resolve Approval Range
+    ↓
+Resolve Dynamic Employee
+    ↓
+Insert DF_DOCUMENT_ROUTE
+```
+
+এরপর ওই document আর master configuration-এর উপর নির্ভর করবে না।
+
+এটা audit system-এর জন্য খুব গুরুত্বপূর্ণ।
+
+---
+
+# 35. Other Document Type Path
+
+General Memo:
+
+```text
+Creator
+ ↓
+Department Head
+ ↓
+Concerned ED
+ ↓
+Managing Director
+```
+
+Manpower Note:
+
+```text
+Creator
+ ↓
+Department Head
+ ↓
+HR Head
+ ↓
+ED Admin
+ ↓
+MD
+```
+
+Notice:
+
+```text
+Creator
+ ↓
+Department Head
+ ↓
+Concerned ED
+ ↓
+MD
+```
+
+সবগুলো একই engine চালাবে।
+
+কেবল configuration change হবে।
+
+---
+
+# 36. Conditional Workflow
+
+Workflow step-এ condition support রাখুন।
+
+Example:
+
+```text
+IF Department = Sales
+    → ED Sales
+ELSE
+    → ED Admin
+```
+
+বা:
+
+```text
+IF Location = FAC
+    → ED Plants
+ELSE
+    → ED Admin
+```
+
+বা:
+
+```text
+IF Amount > 100000
+    → MD
+```
+
+এজন্য:
+
+## `DF_WORKFLOW_CONDITION`
+
+```text
+CONDITION_ID
+STEP_ID
+
+FIELD_NAME
+OPERATOR
+VALUE1
+VALUE2
+
+CONDITION_GROUP
+```
+
+Operators:
+
+```text
+=
+<>
+>
+>=
+<
+<=
+BETWEEN
+IN
+```
+
+তবে arbitrary SQL expression database table-এ রাখবেন না। Security/maintenance problem হবে।
+
+---
+
+# 37. APEX Application Structure
+
+আমি APEX app-টা নিচের menu structure-এ করতাম।
+
+```text
+Dashboard
+
+Documents
+ ├── Create Document
+ ├── My Drafts
+ ├── My Submitted Documents
+ ├── My Documents
+
+My Work
+ ├── My Inbox
+ ├── Review Requests
+ ├── Returned Documents
+ └── Completed Tasks
+
+Approved Documents
+ ├── Approved
+ └── Distributed
+
+Search
+ └── Document Search
+
+Administration
+ ├── Document Types
+ ├── Workflow Setup
+ ├── Workflow Steps
+ ├── Approval Range Setup
+ ├── Item Master
+ ├── Item Experts
+ ├── Authority / Roles
+ ├── Department Head Setup
+ └── Delegation Setup
+```
+
+---
+
+# 38. Dashboard Page
+
+Cards:
+
+```text
+My Pending      12
+Review Request   3
+Returned         2
+Draft            5
+Approved Today  16
+```
+
+Charts:
+
+```text
+Pending by Department
+Pending by Authority
+Average Approval Time
+Overdue Documents
+Documents by Type
+```
+
+---
+
+# 39. Create Document Page
+
+ধরুন Page 10।
+
+### Region 1 — Basic Information
+
+```text
+Document Type
+Department
+Subject
+Document Date
+Priority
+Confidentiality
+```
+
+### Region 2 — Document
+
+Rich Text Editor:
+
+```text
+Document Body
+```
+
+### Region 3 — Purchase Information
+
+শুধু:
+
+```text
+TYPE = PROCUREMENT
+```
+
+হলে show হবে:
+
+```text
+Purchase Category
+Item
+Quantity
+Estimated Amount
+Required Date
+```
+
+---
+
+# 40. Purchase Item Select করলেই Expert Preview
+
+APEX Dynamic Action:
+
+```text
+Item: Electrical
+```
+
+select করলে:
+
+```text
+Item Expert:
+Md. XXXXX
+Engineering Department
+```
+
+show করতে পারেন।
+
+কিন্তু route তখনও create করবেন না।
+
+Submit-এর সময় final resolution হবে।
+
+---
+
+# 41. Submit করার আগে Route Preview
+
+এটা খুব useful feature।
+
+User submit-এর আগে দেখতে পারবে:
+
+```text
+Approval Route
+
+1. Department Head
+   Md. XXXXX
+
+2. Item Expert
+   Md. XXXXX
+
+3. Purchase Head
+   Md. XXXXX
+
+4. Accounts Head
+   Md. XXXXX
+
+5. CFO
+   Md. XXXXX
+
+6. Executive Director
+   Md. XXXXX
+```
+
+Amount change করলে route automatically refresh হবে।
+
+---
+
+# 42. Document Detail Page
+
+সব document-এর জন্য একটি common page রাখুন।
+
+Top:
+
+```text
+PUR-202608/00127
+Procurement Note
+
+Status: Pending with CFO
+```
+
+তার নিচে:
+
+```text
+Document Details
+Attachments
+Approval Route
+History
+Distribution
+Versions
+```
+
+---
+
+# 43. Action Bar
+
+যার কাছে document pending আছে শুধু তার জন্য:
+
+```text
+[Forward]
+[Recommend]
+[Approve]
+[Send for Review]
+[Return]
+[Reject]
+```
+
+যা applicable শুধু তা দেখাবেন।
+
+এটা `DF_TASK` + `DF_WORKFLOW_STEP` permission অনুযায়ী।
+
+---
+
+# 44. Send for Review Modal
+
+Button:
+
+```text
+Send for Review
+```
+
+Modal:
+
+```text
+Reviewer
+Due Date
+Instruction / Remarks
+
+[Send]
+```
+
+Employee LOV:
+
+```sql
+select emp_name d,
+       emp_id   r
+from employees
+where emp_status = 'A'
+order by emp_name;
+```
+
+---
+
+# 45. Reviewer Page
+
+Reviewer দেখবে:
+
+```text
+Review Requested By : CFO
+Requested Date       : ...
+Instruction          : Please verify specification
+```
+
+Buttons:
+
+```text
+[Complete Review]
+```
+
+Remarks mandatory।
+
+Reviewer:
+
+❌ Normal Forward করতে পারবে না।
+
+কারণ মূল workflow ownership এখনও CFO-এর।
+
+---
+
+# 46. Timeline UI
+
+Document detail page-এ timeline দিলে system অনেক professional হবে।
+
+```text
+● Created
+  Shadiqur Rahman
+  17 Aug 09:15
+
+│
+● Submitted
+  Shadiqur Rahman
+  17 Aug 09:20
+
+│
+● Recommended
+  Department Head
+  17 Aug 10:05
+
+│
+● Sent for Review
+  CFO → IT Department
+  17 Aug 11:30
+
+│
+● Reviewed
+  Md. X
+  17 Aug 13:10
+  "Found technically suitable"
+
+│
+● Forwarded
+  CFO
+  17 Aug 13:20
+
+│
+● Approved
+  Managing Director
+```
+
+আপনার বর্তমান PDF-এর page 2-এর history table-এর modern web equivalent এটা হতে পারে। 
+
+---
+
+# 47. Print/PDF History
+
+Print report-এ আপনার existing format retain করা যায়:
+
+```text
+Name
+Designation
+Remarks
+Action
+Date
+```
+
+কিন্তু query হবে:
+
+```sql
+SELECT ...
+FROM df_action_history
+WHERE document_id = :P_DOCUMENT_ID
+ORDER BY action_date;
+```
+
+L1/L2/L3 থেকে `UNION ALL` লাগবে না।
+
+---
+
+# 48. My Inbox Query
+
+Conceptually:
+
+```sql
+SELECT d.document_id,
+       d.document_no,
+       d.subject,
+       dt.type_name,
+       t.task_type,
+       t.assigned_date,
+       d.current_status
+FROM df_task t
+JOIN df_document d
+  ON d.document_id = t.document_id
+JOIN df_document_type dt
+  ON dt.type_id = d.type_id
+WHERE t.assigned_to_emp_id = :G_EMP_ID
+  AND t.status = 'PENDING';
+```
+
+অত্যন্ত simple।
+
+---
+
+# 49. Search System
+
+Search করতে পারবেন:
+
+```text
+Document No
+Subject
+Creator
+Department
+Type
+Item
+Amount
+Date Range
+Current Holder
+Status
+Approved By
+Remarks
+```
+
+এবং full audit বের হবে।
+
+---
+
+# 50. Document Tracking
+
+User search করলে:
+
+```text
+Current Status:
+Pending
+
+Currently With:
+Md. XXXX
+CFO
+
+Since:
+17-Aug-2026 10:30 AM
+
+Elapsed:
+5h 32m
+```
+
+এটা management-এর জন্য খুব useful।
+
+---
+
+# 51. Delegation Support রাখুন
+
+কোন approver leave-এ থাকলে:
+
+```text
+CFO
+17-Aug → 25-Aug
+Delegate To = Acting CFO
+```
+
+Table:
+
+## `DF_DELEGATION`
+
+```text
+DELEGATION_ID
+FROM_EMP_ID
+TO_EMP_ID
+ROLE_ID
+
+START_DATE
+END_DATE
+ACTIVE_YN
+```
+
+Resolver task create করার সময় delegation check করবে।
+
+---
+
+# 52. Escalation Optional
+
+Future:
+
+```text
+Pending > 24 hours
+→ Reminder
+
+Pending > 48 hours
+→ Escalation
+```
+
+Table:
+
+```text
+DF_ESCALATION_RULE
+```
+
+APEX Automation / DB scheduler দিয়ে চালানো যায়।
+
+প্রথম release-এ প্রয়োজন না হলে পরে করবেন।
+
+---
+
+# 53. Notifications
+
+Actions:
+
+```text
+Assigned
+Review requested
+Review completed
+Returned
+Approved
+Rejected
+Distributed
+```
+
+এর সময় notification:
+
+```text
+APEX Notification
+Email
+SMS
+```
+
+future-ready রাখুন।
+
+Core workflow-এর সাথে email send tightly couple করবেন না।
+
+---
+
+# 54. Security
+
+এখানে শুধু APEX page authorization যথেষ্ট নয়।
+
+PL/SQL package-ও validate করবে:
+
+```text
+Current employee কি current task owner?
+Action permitted?
+Document already processed?
+Task expired/reassigned?
+```
+
+যাতে URL manipulate করে কেউ approve করতে না পারে।
+
+---
+
+# 55. Current User Mapping
+
+APEX username ↔ Employee ID mapping central রাখুন।
+
+Example:
+
+```text
+APP_USERS
+
+USER_ID
+APP_USERNAME
+EMP_ID
+ACTIVE_YN
+```
+
+Global item:
+
+```text
+:G_EMP_ID
+```
+
+---
+
+# 56. Confidential Documents
+
+Future-proof করার জন্য:
+
+```text
+CONFIDENTIALITY_LEVEL
+```
+
+যেমন:
+
+```text
+NORMAL
+CONFIDENTIAL
+RESTRICTED
+MANAGEMENT_ONLY
+```
+
+Search permission-এ এটা check করবেন।
+
+---
+
+# 57. Performance
+
+Indexes অবশ্যই:
+
+```text
+DF_TASK
+(
+ assigned_to_emp_id,
+ status
+)
+
+DF_DOCUMENT
+(
+ current_status,
+ current_assignee_emp_id
+)
+
+DF_ACTION_HISTORY
+(
+ document_id,
+ action_date
+)
+
+DF_DOCUMENT_ROUTE
+(
+ document_id,
+ step_no
+)
+
+DF_APPROVAL_RULE
+(
+ workflow_id,
+ min_amount,
+ max_amount
+)
+```
+
+---
+
+# 58. আমার Suggested Physical Model
+
+Core system মোটামুটি এমন:
+
+```text
+DF_DOCUMENT_TYPE
+       │
+       ▼
+DF_WORKFLOW
+       │
+       ▼
+DF_WORKFLOW_STEP
+       │
+       ├────────────── DF_APPROVAL_RULE
+       │
+       ▼
+DF_DOCUMENT
+       │
+       ├── DF_DOCUMENT_VERSION
+       ├── DF_DOCUMENT_ATTACHMENT
+       ├── DF_PURCHASE
+       ├── DF_PURCHASE_ITEM
+       │
+       ▼
+DF_DOCUMENT_ROUTE
+       │
+       ▼
+DF_TASK
+       │
+       ▼
+DF_ACTION_HISTORY
+
+DF_DOCUMENT
+       │
+       └── DF_DISTRIBUTION
+
+
+DF_ITEM
+   │
+   └── DF_ITEM_EXPERT
+
+DF_ROLE
+   │
+   └── DF_ROLE_ASSIGNMENT
+
+DF_DELEGATION
+```
+
+---
+
+# 59. আপনার Existing Tables-এর কী হবে?
+
+সব delete/rewrite করার দরকার নেই।
+
+আমি migration করতাম:
+
+| Existing              | New                                     |
+| --------------------- | --------------------------------------- |
+| `DF_TYPE`             | `DF_DOCUMENT_TYPE`                      |
+| `PUR_ITEM`            | `DF_ITEM`                               |
+| `PUR_ITEM.EMPCODE`    | `DF_ITEM_EXPERT`                        |
+| `DEPAT_HEAD`          | `DF_ROLE_ASSIGNMENT`                    |
+| `DF_SEQUENCE`         | `DF_WORKFLOW + DF_WORKFLOW_STEP`        |
+| `CS_RANGE_MASTER`     | `DF_APPROVAL_RULE`                      |
+| `CS_AUTHORITY_LIST`   | `DF_ROLE`                               |
+| `CS_APPROVAL_ED_LIST` | `DF_ROLE_ASSIGNMENT`                    |
+| `DF_MASTER`           | `DF_DOCUMENT`                           |
+| L0-L12 history        | `DF_DOCUMENT_ROUTE + DF_ACTION_HISTORY` |
+| Reviewer fields       | `DF_TASK` review sub-task               |
+
+---
+
+# 60. Existing Design-এর যেগুলো আমি রাখব
+
+আপনার existing system-এর কিছু idea ভালো এবং রাখা উচিত:
+
+* Document Type
+* Item based routing
+* Item expert
+* Department Head resolution
+* Company / Unit / Location based configuration
+* Amount based approval
+* Document action history
+* System-generated print
+* Created → Reviewed → Forwarded → Approved lifecycle
+
+কিন্তু এগুলো fixed columns-এর পরিবর্তে generic workflow engine-এ আনব।
+
+---
+
+# 61. Existing Design-এর যেগুলো বাদ দেব
+
+বিশেষ করে:
+
+```text
+L0_EMPCODE
+L1_EMPCODE
+...
+L12_EMPCODE
+
+L0_TYPE
+...
+L12_TYPE
+```
+
+❌ বাদ।
+
+এবং:
+
+```sql
+IF L1 THEN...
+ELSIF L2 THEN...
+ELSIF L3 THEN...
+```
+
+❌ বাদ।
+
+Amount:
+
+```sql
+IF p_item_amt >= 50000
+```
+
+❌ hard-code নয়।
+
+Reviewer:
+
+```text
+REVIEWERS
+R_STATUS
+```
+
+একটি field-এ রাখব না।
+
+✅ `DF_TASK` + `DF_ACTION_HISTORY`।
+
+---
+
+# 62. Recommended Workflow Engine Flow
+
+Submit:
+
+```text
+CREATE DOCUMENT
+      ↓
+VALIDATE
+      ↓
+SELECT WORKFLOW
+      ↓
+CHECK DOCUMENT TYPE
+      ↓
+IF PURCHASE
+   ├── Find Item Expert
+   ├── Evaluate Amount
+   └── Build Approval Chain
+      ↓
+RESOLVE ACTORS
+      ↓
+CREATE ROUTE SNAPSHOT
+      ↓
+CREATE FIRST TASK
+      ↓
+STATUS = IN_PROCESS
+```
+
+Normal processing:
+
+```text
+Current Approver
+      ↓
+Action?
+ ┌────┼─────────┬──────────┐
+ │    │         │          │
+Forward Review Return    Reject
+ │    │         │          │
+ │    ▼         ▼          ▼
+ │ Reviewer   Previous   Closed
+ │    │
+ │ Reviewed
+ │    │
+ │    ▼
+ │ Original Approver
+ │
+ ▼
+Next Workflow Step
+ │
+ ▼
+Final Step?
+ ├─ No → Next Task
+ └─ Yes → APPROVED
+```
+
+---
+
+# 63. Procurement Example Full Journey
+
+ধরি:
+
+```text
+Creator       = Purchase Executive
+Item          = Electrical
+Amount        = 75,000
+Department    = Engineering
+```
+
+System resolves:
+
+```text
+1. Engineering Department Head
+2. Electrical Item Expert
+3. Purchase Head
+4. Accounts Head
+5. CFO
+6. ED Plants
+```
+
+During CFO:
+
+```text
+CFO
+ ↓
+Send Review → Technical employee
+ ↓
+Technical employee reviews
+ ↓
+Returns to CFO
+ ↓
+CFO Forward
+ ↓
+ED Plants
+ ↓
+Approve
+```
+
+History:
+
+```text
+01 Creator          CREATED
+02 Creator          SUBMITTED
+03 Eng. Head        RECOMMENDED
+04 Item Expert      REVIEWED
+05 Purchase Head    FORWARDED
+06 Accounts Head    RECOMMENDED
+07 CFO              REVIEW_REQUESTED → Employee X
+08 Employee X       REVIEWED
+09 CFO              FORWARDED
+10 ED Plants        APPROVED
+```
+
+Approval-এর পরে:
+
+```text
+Distribution
+├ Accounts
+├ Store
+├ Purchase
+└ Vendor representative
+```
+
+এবং এগুলো approval history থেকে আলাদা থাকবে।
+
+---
+
+# 64. Oracle Package Structure
+
+আমি code-টা এভাবে ভাগ করব:
+
+```text
+PKG_DF_DOCUMENT
+    create_document
+    update_document
+    create_version
+
+PKG_DF_WORKFLOW
+    submit
+    build_route
+    forward
+    approve
+    return_doc
+    reject
+
+PKG_DF_REVIEW
+    send_for_review
+    complete_review
+
+PKG_DF_ACTOR
+    resolve
+    get_department_head
+    get_item_expert
+    get_role_employee
+
+PKG_DF_RULE
+    get_approval_rule
+    build_purchase_approval_chain
+
+PKG_DF_HISTORY
+    log_action
+
+PKG_DF_DISTRIBUTION
+    send_document
+    acknowledge_document
+```
+
+এটা maintain করা অনেক সহজ হবে।
+
+---
+
+# 65. APEX Page Plan
+
+Development sequence-টাও important। আমি এই order-এ করব:
+
+**Phase 1 — Masters**
+
+```text
+Page 101 Document Type
+Page 102 Item Master
+Page 103 Item Expert
+Page 104 Role Master
+Page 105 Role Assignment
+Page 106 Approval Range
+```
+
+**Phase 2 — Workflow Designer**
+
+```text
+Page 110 Workflow Master
+Page 111 Workflow Steps
+Page 112 Rule Configuration
+Page 113 Route Preview/Test
+```
+
+**Phase 3 — Documents**
+
+```text
+Page 120 Create/Edit Document
+Page 121 Document Details
+Page 122 Attachment
+```
+
+**Phase 4 — Transaction**
+
+```text
+Page 130 My Inbox
+Page 131 Review Inbox
+Page 132 Returned Documents
+Page 133 My Submitted Documents
+```
+
+**Phase 5 — Monitoring**
+
+```text
+Page 140 Search
+Page 141 Document Tracking
+Page 142 Workflow History
+Page 143 Dashboard
+```
+
+**Phase 6 — Output**
+
+```text
+Page 150 Print/PDF
+Page 151 Distribution
+```
+
+---
+
+# 66. Workflow Setup Page UI
+
+Admin যেন code না লিখেই setup করতে পারে।
+
+Example:
+
+**Workflow:** Procurement
+
+| Seq | Step                | Actor           | Required        |
+| --: | ------------------- | --------------- | --------------- |
+|  10 | Dept Review         | Department Head | Yes             |
+|  20 | Technical Review    | Item Expert     | Yes             |
+|  30 | Purchase Review     | Purchase Head   | Yes             |
+|  40 | Accounts Review     | Accounts Head   | Based on Amount |
+|  50 | Finance Approval    | CFO             | Based on Amount |
+|  60 | Management Approval | ED              | Based on Amount |
+|  70 | Final Approval      | MD              | Based on Amount |
+
+এখানে 10,20,30 ব্যবহার করা ভালো—1,2,3 নয়। পরে মাঝখানে step add করা সহজ:
+
+```text
+10
+20
+25 ← নতুন
+30
+```
+
+---
+
+# 67. Approval Range Admin Screen
+
+UI:
+
+```text
+Procurement Approval Matrix
+
+From       To        Authority
+---------  --------  -------------------
+0          10,000    Department Head
+10,000.01  30,000    Accounts Head
+30,000.01  50,000    CFO
+50,000.01 100,000    Executive Director
+100,000.01 NULL      Managing Director
+```
+
+Validation:
+
+```text
+No overlapping range
+No duplicate active range
+From <= To
+```
+
+---
+
+# 68. আরও Better: Threshold Based Model
+
+আপনার case-এ range-এর পরিবর্তে threshold আরও সুন্দর হতে পারে:
+
+```text
+AUTHORITY            THRESHOLD
+-------------------  ---------
+Department Head       10000
+Accounts Head         30000
+CFO                   50000
+Executive Director   100000
+Managing Director    NULL
+```
+
+যদি cumulative chain হয়, engine amount পর্যন্ত step তৈরি করবে।
+
+এটা maintain করা range-এর থেকেও সহজ।
+
+কিন্তু different item-এর different rules থাকলে range-based master বেশি flexible।
+
+---
+
+# 69. Approval Configuration Priority
+
+Purchase rule resolve করার order রাখব:
+
+```text
+1. Exact Item + Company + Location
+2. Item Category + Company + Location
+3. Exact Item + Company
+4. Item Category + Company
+5. Document Type Default
+```
+
+এতে special exception সহজ হবে।
+
+Example:
+
+```text
+Electrical
+Factory
+>500,000
+
+requires MD
+```
+
+কিন্তু অন্য item-এর default policy আলাদা হতে পারে।
+
+---
+
+# 70. Very Important — No Data Delete
+
+Workflow/history table থেকে transaction delete করার privilege সাধারণ user/admin-কেও দেব না।
+
+Correction করতে:
+
+```text
+CANCELLED
+SUPERSEDED
+```
+
+status ব্যবহার করুন।
+
+Audit system-এ physical delete avoid করা ভালো।
+
+---
+
+# 71. Final Recommended Architecture
+
+আপনার system-এর জন্য আমি শেষ পর্যন্ত এই model-টাই recommend করব:
+
+```text
+                     CONFIGURATION
+                          │
+             ┌────────────┼─────────────┐
+             │            │             │
+        Document Type   Workflow     Approval Rule
+                          │
+                    Workflow Steps
+                          │
+                Dynamic Actor Resolver
+             ┌────────────┼────────────┐
+             │            │            │
+          Dept Head   Item Expert    Role/User
+             │
+             └────────────┼────────────┘
+                          │
+                          ▼
+                     DOCUMENT
+                          │
+                   Submit Document
+                          │
+                     Route Snapshot
+                          │
+                          ▼
+                       TASK
+                          │
+            ┌─────────────┼─────────────┐
+            │             │             │
+          Forward       Review        Return
+            │             │             │
+            │        Temporary Task     │
+            │             │             │
+            │        Return to Sender   │
+            │             │             │
+            └─────────────┼─────────────┘
+                          │
+                       Approve
+                          │
+                          ▼
+                     DISTRIBUTION
+                          │
+                 Employee / External
+```
+
+## আমার recommendation
+
+**বর্তমান `DF_MASTER + DF_SEQUENCE + L1...L12 + giant trigger` architecture-কে আর extend না করাই ভালো।**
+
+এখন যেহেতু আপনার নতুন requirement substantially বড় হয়েছে, এই stage-এই normalized workflow engine-এ যাওয়া উচিত। এতে 12-level limitation থাকবে না, purchase amount rule hard-coded থাকবে না, item expert dynamic হবে, যেকোনো stage থেকে arbitrary review করা যাবে, review শেষে ঠিক sender-এর কাছেই ফিরবে, return/reject/version history থাকবে, approval-এর পর distribution হবে, এবং আপনার বর্তমান PDF-এর Created/Reviewed/Forwarded/Approved audit format-ও আরও cleanভাবে generate করা যাবে। 
+
+পরবর্তী development step হিসেবে সবচেয়ে যৌক্তিক হবে **Database Design Phase**: `DF_DOCUMENT`, `DF_WORKFLOW`, `DF_WORKFLOW_STEP`, `DF_APPROVAL_RULE`, `DF_DOCUMENT_ROUTE`, `DF_TASK`, `DF_ACTION_HISTORY`, `DF_ITEM_EXPERT`, `DF_DISTRIBUTION`—এই tables-এর complete Oracle 19c DDL, PK/FK/index/constraints এবং sample procurement workflow data তৈরি করা। এরপর সেই schema-এর উপর APEX pages এবং `PKG_DF_WORKFLOW` procedure একে একে বানানো যাবে।

@@ -1,0 +1,26 @@
+CREATE TABLE CS_RANGE_MASTER
+(
+    ID           NUMBER,
+    AMT1         NUMBER,
+    AMT2         NUMBER,
+    ITEM_TYPE    VARCHAR2 (100),
+    CS_TYPE      VARCHAR2 (100)
+)
+/
+
+CREATE TABLE CS_AUTHORITY_LIST
+(
+    ID                NUMBER,
+    APPROVAL_ROLE     VARCHAR2 (100),
+    EMPCODE           VARCHAR2 (100),
+    EMPCODE_IMPORT    VARCHAR2 (100)
+)
+/
+
+CREATE TABLE CS_APPROVAL_ED_LIST
+(
+    DEPARTMENT_NAME    VARCHAR2 (100),
+    EMP_CODE           VARCHAR2 (10),
+    STATUS             VARCHAR2 (1)
+)
+/
